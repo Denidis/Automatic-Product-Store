@@ -33,6 +33,7 @@ namespace IngameScript
             int _globalMarkupPercent;
 
             string _infoComponents = "", _infoIngOre = "", _infoTools = "", _infoConsumables = "", _infoSeeds = "";
+            internal List<IMyCargoContainer> Containers { get { return _containers; } }
             internal string InfoComponents { get { return _infoComponents; } }
             internal string InfoIngOre { get { return _infoIngOre; } }
             internal string InfoTools { get { return _infoTools; } }
@@ -53,10 +54,10 @@ namespace IngameScript
                 _globalMarkupPercent = globalMarkupPercent;
             }
 
-            internal void GetStoreBlock(IMyGridTerminalSystem TerminalSystem, IMyCubeGrid CubeGrid, ref string[] storeTags)
+            internal void GetStoreBlock(IMyGridTerminalSystem TerminalSystem, IMyCubeGrid cubeGrid, ref string[] storeTags)
             {
                 List<IMyStoreBlock> AllStoreBlock = new List<IMyStoreBlock>();
-                TerminalSystem.GetBlocksOfType(AllStoreBlock, x => x.CubeGrid == CubeGrid);
+                TerminalSystem.GetBlocksOfType(AllStoreBlock, x => x.CubeGrid == cubeGrid);
                 foreach (var thisBlock in AllStoreBlock)
                 {
                     string nameLower = thisBlock.CustomName.ToLower();
@@ -69,81 +70,68 @@ namespace IngameScript
                 }
             }
 
-            internal void StoreUpdate(IMyGridTerminalSystem terminalSystem, IMyProgrammableBlock Me, ref string group, ref string tagContainer, ref string tagExclude)
+            internal void StoreUpdate(IMyGridTerminalSystem terminalSystem, IMyCubeGrid cubeGrid)
             {
-                if (_containers.Count == 0 || _storeCount == 0) GetCargoBlocks(terminalSystem, Me, group, tagContainer, tagExclude);
+                if (_containers.Count == 0 || _storeCount == 0) GetCargoBlocks(terminalSystem, cubeGrid);
                 PlaceOffers();
             }
 
-            internal void StoreUpdate(List<IMyCargoContainer> containers)
-            {
-                _containers = containers;
-                PlaceOffers();
-            }
 
-            internal bool UpdateCargoItems(IMyGridTerminalSystem terminalSystem, IMyProgrammableBlock Me, ref string tagExclude)
-            {
-                if (_containers.Count == 0) GetCargoBlocks(terminalSystem, Me, tagExclude);
-                return SortingContentsInventories();
-            }
-
-            void GetCargoBlocks(IMyGridTerminalSystem terminalSystem, IMyProgrammableBlock Me, string group = "", string tagContainer = "", string tagExclude = "исключить")
+            void GetCargoBlocks(IMyGridTerminalSystem terminalSystem, IMyCubeGrid cubeGrid)
             {
                 Warning = "";
                 _containers.Clear();
-                if (group != string.Empty)
+                if (kGroupContainersForTrade != string.Empty)
                 {
-                    var groupCargo = terminalSystem.GetBlockGroupWithName(group);
+                    var groupCargo = terminalSystem.GetBlockGroupWithName(kGroupContainersForTrade);
                     if (groupCargo != null) groupCargo.GetBlocksOfType<IMyCargoContainer>(_containers);
                 }
-                else if (tagContainer != string.Empty)
+                else if (kTagContainerForTrade != string.Empty)
                 {
-                    terminalSystem.GetBlocksOfType(_containers, x => x.CubeGrid == Me.CubeGrid &&
-                        x.CustomName.ToLower().Contains(tagContainer.ToLower()));
+                    terminalSystem.GetBlocksOfType(_containers, x => x.CubeGrid == cubeGrid &&
+                        x.CustomName.ToLower().Contains(kTagContainerForTrade.ToLower()));
                 }
                 if (_containers.Count == 0)
                 {
-                    terminalSystem.GetBlocksOfType(_containers, x => x.CubeGrid == Me.CubeGrid &&
-                        !x.CustomName.ToLower().Contains(tagExclude.ToLower()));
+                    terminalSystem.GetBlocksOfType(_containers, x => x.CubeGrid == cubeGrid &&
+                        !x.CustomName.ToLower().Contains(kTagExclude.ToLower()));
                 }
             }
 
             void PlaceOffers()
             {
                 if (_containers.Count == 0) { Warning = "Размещение отменено. Нет конейнеров"; return; }
-                if (SortingContentsInventories())
+                if (!SortingContentsInventories()) return;
+                switch (_storeCount)
                 {
-                    switch (_storeCount)
-                    {
-                        case 0:
-                            StoreComp.PlaceOfferingsAndSales(ref Components, "MyObjectBuilder_Component", _globalMarkupPercent);
-                            break;
-                        case 1:
-                            StoreIng.PlaceOfferingsAndSales(ref Ingots, "MyObjectBuilder_Ingot", _globalMarkupPercent);
-                            break;
-                        case 2:
-                            StoreOre.PlaceOfferingsAndSales(ref Ores, "MyObjectBuilder_Ore", _globalMarkupPercent);
-                            break;
-                        case 3:
-                            StoreTool.PlaceOfferingsAndSales(ref Tools, "MyObjectBuilder_PhysicalGunObject", _globalMarkupPercent);
-                            StoreTool.PlaceOfferingsAndSales(ref Oxygen, "MyObjectBuilder_OxygenContainerObject", _globalMarkupPercent, true);
-                            StoreTool.PlaceOfferingsAndSales(ref Hydrogen, "MyObjectBuilder_GasContainerObject", _globalMarkupPercent, true);
-                            StoreTool.PlaceOfferingsAndSales(ref Ammo, "MyObjectBuilder_AmmoMagazine", _globalMarkupPercent, true);
-                            break;
-                        case 4:
-                            StoreConsumables.PlaceOfferingsAndSales(ref Consumables, "MyObjectBuilder_ConsumableItem", _globalMarkupPercent);
-                            break;
-                        case 5:
-                            StoreSeeds.PlaceOfferingsAndSales(ref Seeds, "MyObjectBuilder_SeedItem", _globalMarkupPercent);
-                            break;
-                        default:
-                            _storeCount = 0;
-                            _containers.Clear();
-                            TimeCheckStore.Start();
-                            return;
-                    }
-                    _storeCount++;
+                    case 0:
+                        StoreComp.PlaceOfferingsAndSales(ref Components, "MyObjectBuilder_Component", _globalMarkupPercent);
+                        break;
+                    case 1:
+                        StoreIng.PlaceOfferingsAndSales(ref Ingots, "MyObjectBuilder_Ingot", _globalMarkupPercent);
+                        break;
+                    case 2:
+                        StoreOre.PlaceOfferingsAndSales(ref Ores, "MyObjectBuilder_Ore", _globalMarkupPercent);
+                        break;
+                    case 3:
+                        StoreTool.PlaceOfferingsAndSales(ref Tools, "MyObjectBuilder_PhysicalGunObject", _globalMarkupPercent);
+                        StoreTool.PlaceOfferingsAndSales(ref Oxygen, "MyObjectBuilder_OxygenContainerObject", _globalMarkupPercent, true);
+                        StoreTool.PlaceOfferingsAndSales(ref Hydrogen, "MyObjectBuilder_GasContainerObject", _globalMarkupPercent, true);
+                        StoreTool.PlaceOfferingsAndSales(ref Ammo, "MyObjectBuilder_AmmoMagazine", _globalMarkupPercent, true);
+                        break;
+                    case 4:
+                        StoreConsumables.PlaceOfferingsAndSales(ref Consumables, "MyObjectBuilder_ConsumableItem", _globalMarkupPercent);
+                        break;
+                    case 5:
+                        StoreSeeds.PlaceOfferingsAndSales(ref Seeds, "MyObjectBuilder_SeedItem", _globalMarkupPercent);
+                        break;
+                    default:
+                        _storeCount = 0;
+                        _containers.Clear();
+                        TimeCheckStore.Start();
+                        return;
                 }
+                _storeCount++;
             }
 
             bool SortingContentsInventories()

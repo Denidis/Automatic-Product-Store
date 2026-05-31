@@ -22,9 +22,9 @@ namespace IngameScript
 
         // ============ ОПЦИОНАЛЬНЫЕ НАСТРОЙКИ МАГАЗИНА ============
         int timeRefresh = 3600; // Интервал для обновления товаров в магазине в секундах (3600 сек = 1 час)
-        string tagExclude = "Исключить";
-        string groupContainersForTrade = "";
-        string tagContainerForTrade = "";
+        const string kTagExclude = "Исключить";
+        const string kGroupContainersForTrade = "";
+        const string kTagContainerForTrade = "";
         int globalMarkupPercent = 25; // 25% наценка по умолчанию. Если у конкретного товара не включён флаг UseMarkup, будет использоваться этот глобальный процент (если он > 0).
 
         bool tradeComponents = true;
@@ -101,7 +101,7 @@ namespace IngameScript
             ["Uranium"] = new MyItem(50, 80664, true, 80700, true, TradeModel.SellOnly, true, 0),
         };
 
-        // ========== РУДЫ ==========
+        // ========== РУДЫ ==========ы
         static internal Dictionary<string, MyItem> Ores = new Dictionary<string, MyItem>()
         {
             ["Cobalt"] = new MyItem(1000, 300, true, 310, true, TradeModel.SellOnly, true, 0),
@@ -237,8 +237,7 @@ namespace IngameScript
         readonly string[] arguments = new string[] {
             "магазин.разместить",
             "магазин.очистить",
-            "магазин.список",
-            "магазин.время"
+            "магазин.список"
         };
 
         // Режим работы с товаром
@@ -260,42 +259,56 @@ namespace IngameScript
             if (AutoStore.TimeCheckStore.IsOut())
             {
                 if (Runtime.UpdateFrequency != UpdateFrequency.Update10) Runtime.UpdateFrequency = UpdateFrequency.Update10;
-                AutoStore.StoreUpdate(GridTerminalSystem, Me, ref groupContainersForTrade, ref tagContainerForTrade, ref tagExclude);
+                AutoStore.StoreUpdate(GridTerminalSystem, Me.CubeGrid);
             }
             else if (Runtime.UpdateFrequency != UpdateFrequency.Update100) Runtime.UpdateFrequency = UpdateFrequency.Update100;
 
             if (arg != string.Empty) Arguments(arg);
-            Echo($"Выполнение {Runtime.LastRunTimeMs} мс");
+
+            Echo($"=== Автоматический магазин ===");
+            //Echo($"Выполнение {Runtime.LastRunTimeMs} мс");
+            if (AutoStore.TimeCheckStore.Launched)
+                Echo($"Обновление предложений \n* через {AutoStore.TimeCheckStore.RestTime}");
+                
             AvailableCommands();
         }
 
         void CheckingSystem()
         {
             Me.CustomData = "";
+            
             if (AutoStore.StoreComp.Block != null)
-                Me.CustomData = $"\nМагазин {AutoStore.StoreComp.Block.CustomName} подключен. Торговля: {tradeComponents}";
+                Me.CustomData += $"{AutoStore.StoreComp.Block.CustomName} подключен. Торговля: {tradeComponents}";
             else
-                Me.CustomData = $"\nМагазин {storeType[0]} не подключен";
+                Me.CustomData += $"Магазин для {storeType[0]} не подключен.";
+            
             if (AutoStore.StoreIng.Block != null)
-                Me.CustomData += $"\nМагазин {AutoStore.StoreIng.Block.CustomName} подключен. Торговля: {tradeIngots}";
+                Me.CustomData += $"\n{AutoStore.StoreIng.Block.CustomName} подключен. Торговля: {tradeIngots}";
             else
-                Me.CustomData += $"\nМагазин {storeType[1]} не подключен";
+                Me.CustomData += $"\nМагазин для {storeType[1]} не подключен.";
+            
             if (AutoStore.StoreOre.Block != null)
-                Me.CustomData += $"\nМагазин {AutoStore.StoreOre.Block.CustomName} подключен. Торговля: {tradeOres}";
+                Me.CustomData += $"\n{AutoStore.StoreOre.Block.CustomName} подключен. Торговля: {tradeOres}";
             else
-                Me.CustomData += $"\nМагазин {storeType[2]} не подключен";
+                Me.CustomData += $"\nМагазин для {storeType[2]} не подключен.";
+            
             if (AutoStore.StoreTool.Block != null)
-                Me.CustomData += $"\nМагазин {AutoStore.StoreTool.Block.CustomName} подключен. Торговля: {tradeTools}";
+                Me.CustomData += $"\n{AutoStore.StoreTool.Block.CustomName} подключен. Торговля: {tradeTools}";
             else
-                Me.CustomData += $"\nМагазин {storeType[3]} не подключен";
+                Me.CustomData += $"\nМагазин для {storeType[3]} не подключен.";
+            
             if (AutoStore.StoreConsumables.Block != null)
-                Me.CustomData += $"\nМагазин {AutoStore.StoreConsumables.Block.CustomName} подключен. Торговля: {tradeConsumables}";
+                Me.CustomData += $"\n{AutoStore.StoreConsumables.Block.CustomName} подключен. Торговля: {tradeConsumables}";
             else
-                Me.CustomData += $"\nМагазин {storeType[4]} не подключен";
+                Me.CustomData += $"\nМагазин для {storeType[4]} не подключен.";
+            
             if (AutoStore.StoreSeeds.Block != null)
-                Me.CustomData += $"\nМагазин {AutoStore.StoreSeeds.Block.CustomName} подключен. Торговля: {tradeSeeds}";
+                Me.CustomData += $"\n{AutoStore.StoreSeeds.Block.CustomName} подключен. Торговля: {tradeSeeds}";
             else
-                Me.CustomData += $"\nМагазин {storeType[5]} не подключен";
+                Me.CustomData += $"\nМагазин для {storeType[5]} не подключен.";
+
+            Me.CustomData += $"\n\n* Добавьте нужным контейнерам тег '{kTagContainerForTrade}' в имя блока.";
+            Me.CustomData += $"\n* Или создайте группу '{kGroupContainersForTrade}' с нужными контейнерами.";
         }
         void Arguments(string arg)
         {
@@ -327,15 +340,10 @@ namespace IngameScript
                 oldCommand = $"{arguments[2]}\nТовары из магазина выведены в данные ПБ";
                 AvailableCommands();
             }
-            else if (arg.ToLower() == arguments[3])
-            {
-                oldCommand = $"{arguments[3]}\nОбновление магазина через\n{AutoStore.TimeCheckStore.RestTime}";
-                AvailableCommands();
-            }
         }
         void AvailableCommands()
         {
-            string info = $"Пред.аргумент:{oldCommand}\n\nВозможные аргументы:";
+            string info = $"\nПред.аргумент: {oldCommand}\n\nВозможные аргументы:";
             foreach (var arg in arguments) { info += $"\n{arg}"; }
             Echo(info);
         }

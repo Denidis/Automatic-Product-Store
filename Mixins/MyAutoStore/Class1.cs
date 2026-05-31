@@ -30,6 +30,7 @@ namespace IngameScript
             internal MyProductBlock StoreSeeds { get; private set; }
             internal Timer TimeCheckStore;
             List<IMyCargoContainer> _containers = new List<IMyCargoContainer>();
+            int _globalMarkupPercent;
 
             string _infoComponents = "", _infoIngOre = "", _infoTools = "", _infoConsumables = "", _infoSeeds = "";
             internal string InfoComponents { get { return _infoComponents; } }
@@ -39,7 +40,8 @@ namespace IngameScript
             internal string InfoSeeds { get { return _infoSeeds; } }
             internal string Warning { get; private set; } = "";
 
-            internal MyAutoStore(ref bool tradeComponents, ref bool tradeIngots, ref bool tradeOres, ref bool tradeTools, ref bool tradeConsumables, ref bool tradeSeeds, int secondsForUpdate = 3600)
+            internal MyAutoStore(ref bool tradeComponents, ref bool tradeIngots, ref bool tradeOres, ref bool tradeTools,
+                                 ref bool tradeConsumables, ref bool tradeSeeds, int globalMarkupPercent, int secondsForUpdate = 3600)
             {
                 StoreComp = new MyProductBlock(tradeComponents);
                 StoreIng = new MyProductBlock(tradeIngots);
@@ -48,6 +50,7 @@ namespace IngameScript
                 StoreConsumables = new MyProductBlock(tradeConsumables);
                 StoreSeeds = new MyProductBlock(tradeSeeds);
                 TimeCheckStore = new Timer(secondsForUpdate, false);
+                _globalMarkupPercent = globalMarkupPercent;
             }
 
             internal void GetStoreBlock(IMyGridTerminalSystem TerminalSystem, IMyCubeGrid CubeGrid, ref string[] storeTags)
@@ -94,12 +97,15 @@ namespace IngameScript
                     if (groupCargo != null) groupCargo.GetBlocksOfType<IMyCargoContainer>(_containers);
                 }
                 else if (tagContainer != string.Empty)
-                    terminalSystem.GetBlocksOfType(_containers, x => x.CubeGrid == Me.CubeGrid && x.CustomName.ToLower().Contains(tagContainer.ToLower()));
-                if (_containers.Count == 0) terminalSystem.GetBlocksOfType(_containers, x => x.CubeGrid == Me.CubeGrid && !x.CustomName.ToLower().Contains(tagExclude.ToLower()));
-
-                Me.CustomData += $"\n[DIAG] Найдено контейнеров: {_containers.Count}";
+                {
+                    terminalSystem.GetBlocksOfType(_containers, x => x.CubeGrid == Me.CubeGrid &&
+                        x.CustomName.ToLower().Contains(tagContainer.ToLower()));
+                }
                 if (_containers.Count == 0)
-                    Me.CustomData += $"\n[DIAG] ВНИМАНИЕ! Контейнеры не найдены! Проверьте тег '{tagContainer}' или группу '{group}'.";
+                {
+                    terminalSystem.GetBlocksOfType(_containers, x => x.CubeGrid == Me.CubeGrid &&
+                        !x.CustomName.ToLower().Contains(tagExclude.ToLower()));
+                }
             }
 
             void PlaceOffers()
@@ -110,25 +116,25 @@ namespace IngameScript
                     switch (_storeCount)
                     {
                         case 0:
-                            StoreComp.PlaceOfferingsAndSales(ref Components, "MyObjectBuilder_Component");
+                            StoreComp.PlaceOfferingsAndSales(ref Components, "MyObjectBuilder_Component", _globalMarkupPercent);
                             break;
                         case 1:
-                            StoreIng.PlaceOfferingsAndSales(ref Ingots, "MyObjectBuilder_Ingot");
+                            StoreIng.PlaceOfferingsAndSales(ref Ingots, "MyObjectBuilder_Ingot", _globalMarkupPercent);
                             break;
                         case 2:
-                            StoreOre.PlaceOfferingsAndSales(ref Ores, "MyObjectBuilder_Ore");
+                            StoreOre.PlaceOfferingsAndSales(ref Ores, "MyObjectBuilder_Ore", _globalMarkupPercent);
                             break;
                         case 3:
-                            StoreTool.PlaceOfferingsAndSales(ref Tools, "MyObjectBuilder_PhysicalGunObject");
-                            StoreTool.PlaceOfferingsAndSales(ref Oxygen, "MyObjectBuilder_OxygenContainerObject", true);
-                            StoreTool.PlaceOfferingsAndSales(ref Hydrogen, "MyObjectBuilder_GasContainerObject", true);
-                            StoreTool.PlaceOfferingsAndSales(ref Ammo, "MyObjectBuilder_AmmoMagazine", true);
+                            StoreTool.PlaceOfferingsAndSales(ref Tools, "MyObjectBuilder_PhysicalGunObject", _globalMarkupPercent);
+                            StoreTool.PlaceOfferingsAndSales(ref Oxygen, "MyObjectBuilder_OxygenContainerObject", _globalMarkupPercent, true);
+                            StoreTool.PlaceOfferingsAndSales(ref Hydrogen, "MyObjectBuilder_GasContainerObject", _globalMarkupPercent, true);
+                            StoreTool.PlaceOfferingsAndSales(ref Ammo, "MyObjectBuilder_AmmoMagazine", _globalMarkupPercent, true);
                             break;
                         case 4:
-                            StoreConsumables.PlaceOfferingsAndSales(ref Consumables, "MyObjectBuilder_ConsumableItem");
+                            StoreConsumables.PlaceOfferingsAndSales(ref Consumables, "MyObjectBuilder_ConsumableItem", _globalMarkupPercent);
                             break;
                         case 5:
-                            StoreSeeds.PlaceOfferingsAndSales(ref Seeds, "MyObjectBuilder_SeedItem");
+                            StoreSeeds.PlaceOfferingsAndSales(ref Seeds, "MyObjectBuilder_SeedItem", _globalMarkupPercent);
                             break;
                         default:
                             _storeCount = 0;
